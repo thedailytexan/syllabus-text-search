@@ -19,6 +19,8 @@ Fall 2026, collected in about 23 minutes:
 | Course sections | 6,968 |
 | Sections with a syllabus | 6,968 (all of them) |
 | Unique documents | 4,094 |
+| Documents we can read | 4,090 (99.9%) |
+| Searchable text | 98.3 million characters |
 | Total size | 2.2 GB |
 | Failed downloads | 0 |
 
@@ -58,7 +60,19 @@ uv run --with httpx python scripts/fetch_pdfs.py
 uv run --with playwright python scripts/fetch_simple_syllabus.py
 ```
 
-Steps 2 and 3 remember what they finished. Re-running only picks up what's new
+**4. Pull the text out of the PDFs.** About a minute.
+
+```sh
+uv run python scripts/extract_text.py
+```
+
+This one needs a few tools first:
+
+```sh
+brew install poppler ocrmypdf tesseract
+```
+
+All of these remember what they finished. Re-running only picks up what's new
 or previously failed, so it's safe to run them again later in the semester to
 catch syllabi uploaded late.
 
@@ -86,7 +100,9 @@ data/
   manifest.jsonl            one row per course section, with its syllabus link
   documents.jsonl           one row per PDF fetched
   simple_syllabus.jsonl     one row per page rendered
+  extractions.jsonl         one row per PDF, recording how we read it
   pdfs/<sha256>.pdf         3,282 PDFs, named by content hash
+  text/<sha256>.txt         the text from that PDF
   simple_syllabus/<id>.html rendered page, kept so we can re-parse it later
   simple_syllabus/<id>.txt  the text from that page
 ```
@@ -98,10 +114,13 @@ actual files.
 
 ## Things we learned along the way
 
-- **Almost nothing needs OCR.** We assumed these would be scans. In a sample of
-  250 PDFs, 98.4% already had readable text embedded. Only around 50 documents
-  in the whole corpus look like real scans. Running character recognition over
-  everything would be slower *and* less accurate than just reading the text.
+- **Almost nothing needs OCR.** We assumed these would be scans. In the end
+  99.5% of the PDFs already had readable text inside them and only 13 needed
+  character recognition. Running OCR over everything would have taken hours to
+  do a worse job on the 99% that didn't need it.
+- **Four syllabi are locked.** Their authors uploaded password-protected PDFs,
+  so nobody can read them without the password. They're recorded as `encrypted`
+  rather than quietly dropped.
 - **The Simple Syllabus pages are the richer half** — around 19,000 characters
   each on average, already broken into labeled sections like the catalog
   description, instructor information and learning objectives.
@@ -111,5 +130,4 @@ The fiddly details of how UT's site behaves are in [docs/source-notes.md](docs/s
 
 ## What's next
 
-- Pull plain text out of the PDFs, with character recognition for the ~50 scans
 - Load everything into Postgres with full-text search

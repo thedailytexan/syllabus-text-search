@@ -1,0 +1,11 @@
+# Fetched source documents - large, regenerable, never committed
+data/
+
+# Secrets
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/

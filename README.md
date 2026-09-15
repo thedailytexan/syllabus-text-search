@@ -12,14 +12,16 @@ down so we can search across all of it at once.
 
 ## What's here so far
 
-Fall 2026, collected in about 23 minutes:
+Fall 2026, start to finish in about 25 minutes:
 
 | | |
 |---|---|
 | Course sections | 6,968 |
 | Sections with a syllabus | 6,968 (all of them) |
 | Unique documents | 4,094 |
-| Total size | 2.2 GB |
+| Documents we can read | 4,090 (99.9%) |
+| Searchable text | 98.3 million characters |
+| Total size | 2.2 GB on disk, 134 MB in the database |
 | Failed downloads | 0 |
 
 ## Setup
@@ -27,15 +29,24 @@ Fall 2026, collected in about 23 minutes:
 You need Python 3.10+ and [uv](https://docs.astral.sh/uv/). The commands below
 pull their own dependencies, so there's no virtualenv to manage.
 
-One extra step for the Simple Syllabus script, which drives a real browser:
+Two extra things, each only needed by one step:
 
 ```sh
+# step 3 drives a real browser
 uv run --with playwright playwright install chromium
+
+# step 4 reads PDFs and falls back to character recognition
+brew install poppler ocrmypdf tesseract
 ```
+
+Step 5 needs somewhere to put the data - a Postgres database. We use
+[Neon](https://neon.tech). Copy `.env.example` to `.env` and put the connection
+string in it.
 
 ## Running it
 
-Three steps, in order. Each one writes into `data/`.
+Five steps, in order. The first four write into `data/`; the last one loads what
+they collected into Postgres.
 
 **1. Build the list of syllabi.** Scans all 282 departments and records every
 course section and where its syllabus lives. Takes about a minute.
@@ -58,7 +69,21 @@ uv run --with httpx python scripts/fetch_pdfs.py
 uv run --with playwright python scripts/fetch_simple_syllabus.py
 ```
 
-Steps 2 and 3 remember what they finished. Re-running only picks up what's new
+**4. Pull the text out of the PDFs.** About a minute.
+
+```sh
+uv run python scripts/extract_text.py
+```
+
+**5. Load it into the database.** About 30 seconds.
+
+```sh
+uv run --with "psycopg[binary]" python scripts/load_database.py
+```
+
+Takes the connection string from `DATABASE_URL`, or from `.env`.
+
+All of these remember what they finished. Re-running only picks up what's new
 or previously failed, so it's safe to run them again later in the semester to
 catch syllabi uploaded late.
 
@@ -86,7 +111,9 @@ data/
   manifest.jsonl            one row per course section, with its syllabus link
   documents.jsonl           one row per PDF fetched
   simple_syllabus.jsonl     one row per page rendered
+  extractions.jsonl         one row per PDF, recording how we read it
   pdfs/<sha256>.pdf         3,282 PDFs, named by content hash
+  text/<sha256>.txt         the text from that PDF
   simple_syllabus/<id>.html rendered page, kept so we can re-parse it later
   simple_syllabus/<id>.txt  the text from that page
 ```
@@ -96,12 +123,39 @@ reuse one syllabus across many sections, so this stores each document once and
 lets any number of sections point at it. That collapsed 5,963 links into 3,282
 actual files.
 
+## Searching it
+
+Two tables. `documents` holds one row per distinct syllabus and its text.
+`sections` holds one row per course offering and points at its document. They
+are separate because instructors reuse a syllabus across sections - one document
+here covers 69 of them - so the text is stored once and shared.
+
+The `syllabi` view joins them, which is what you normally want:
+
+```sql
+-- which departments' syllabi mention ChatGPT
+select department, count(*) as sections
+from syllabi
+where tsv @@ websearch_to_tsquery('english', 'chatgpt')
+group by department
+order by sections desc;
+```
+
+**Count sections, not documents.** They are different numbers and the gap is
+large: 1,382 documents mention ChatGPT, but those cover 2,256 course sections.
+If you are writing "X courses do Y", you want the section count.
+
+Searches run in well under a second across the whole corpus.
+
 ## Things we learned along the way
 
-- **Almost nothing needs OCR.** We assumed these would be scans. In a sample of
-  250 PDFs, 98.4% already had readable text embedded. Only around 50 documents
-  in the whole corpus look like real scans. Running character recognition over
-  everything would be slower *and* less accurate than just reading the text.
+- **Almost nothing needs OCR.** We assumed these would be scans. In the end
+  99.5% of the PDFs already had readable text inside them and only 13 needed
+  character recognition. Running OCR over everything would have taken hours to
+  do a worse job on the 99% that didn't need it.
+- **Four syllabi are locked.** Their authors uploaded password-protected PDFs,
+  so nobody can read them without the password. They're recorded as `encrypted`
+  rather than quietly dropped.
 - **The Simple Syllabus pages are the richer half** — around 19,000 characters
   each on average, already broken into labeled sections like the catalog
   description, instructor information and learning objectives.
@@ -111,5 +165,7 @@ The fiddly details of how UT's site behaves are in [docs/source-notes.md](docs/s
 
 ## What's next
 
-- Pull plain text out of the PDFs, with character recognition for the ~50 scans
-- Load everything into Postgres with full-text search
+- Decide whether to keep the PDF originals somewhere shared, so stories can link
+  the actual document
+- Backfill earlier semesters - the site goes back to Fall 2010 and the scripts
+  take a semester argument

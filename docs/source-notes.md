@@ -45,6 +45,14 @@ read what you downloaded. The columns are:
 semester | course | unique | title | instructors | CV | syllabus | survey
 ```
 
+**Instructor names are fragile.** The instructor cell separates names with
+`<br/>`, and we read it with `text(strip=True)`, which would join two names into
+one string with nothing between them. Every section currently lists exactly one
+instructor - checked across 1,127 sections in six departments - so this does not
+bite today. But if a future semester lists co-instructors, the manifest will show
+a single mashed-together name rather than two. If an instructor name ever looks
+wrong, this is why.
+
 **Two kinds of syllabus link**, distinguished by the button text:
 
 - *Download* → `/download/<id>/` → returns the PDF directly

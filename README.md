@@ -21,7 +21,7 @@ Fall 2026, collected in about 23 minutes:
 | Unique documents | 4,094 |
 | Documents we can read | 4,090 (99.9%) |
 | Searchable text | 98.3 million characters |
-| Total size | 2.2 GB |
+| Total size | 2.2 GB on disk, 134 MB in the database |
 | Failed downloads | 0 |
 
 ## Setup
@@ -72,6 +72,15 @@ This one needs a few tools first:
 brew install poppler ocrmypdf tesseract
 ```
 
+**5. Load it into the database.** About 30 seconds.
+
+```sh
+uv run --with "psycopg[binary]" python scripts/load_database.py
+```
+
+Reads the connection string from `DATABASE_URL`, or from a `.env` file if you
+have one. Copy `.env.example` to `.env` and fill it in.
+
 All of these remember what they finished. Re-running only picks up what's new
 or previously failed, so it's safe to run them again later in the semester to
 catch syllabi uploaded late.
@@ -112,6 +121,30 @@ reuse one syllabus across many sections, so this stores each document once and
 lets any number of sections point at it. That collapsed 5,963 links into 3,282
 actual files.
 
+## Searching it
+
+Two tables. `documents` holds one row per distinct syllabus and its text.
+`sections` holds one row per course offering and points at its document. They
+are separate because instructors reuse a syllabus across sections - one document
+here covers 69 of them - so the text is stored once and shared.
+
+The `syllabi` view joins them, which is what you normally want:
+
+```sql
+-- which departments' syllabi mention ChatGPT
+select department, count(*) as sections
+from syllabi
+where tsv @@ websearch_to_tsquery('english', 'chatgpt')
+group by department
+order by sections desc;
+```
+
+**Count sections, not documents.** They are different numbers and the gap is
+large: 1,382 documents mention ChatGPT, but those cover 2,256 course sections.
+If you are writing "X courses do Y", you want the section count.
+
+Searches run in well under a second across the whole corpus.
+
 ## Things we learned along the way
 
 - **Almost nothing needs OCR.** We assumed these would be scans. In the end
@@ -130,4 +163,7 @@ The fiddly details of how UT's site behaves are in [docs/source-notes.md](docs/s
 
 ## What's next
 
-- Load everything into Postgres with full-text search
+- Decide whether to keep the PDF originals somewhere shared, so stories can link
+  the actual document
+- Backfill earlier semesters - the site goes back to Fall 2010 and the scripts
+  take a semester argument

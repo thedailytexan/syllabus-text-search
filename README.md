@@ -12,7 +12,7 @@ down so we can search across all of it at once.
 
 ## What's here so far
 
-Fall 2026, collected in about 23 minutes:
+Fall 2026, start to finish in about 25 minutes:
 
 | | |
 |---|---|
@@ -29,15 +29,24 @@ Fall 2026, collected in about 23 minutes:
 You need Python 3.10+ and [uv](https://docs.astral.sh/uv/). The commands below
 pull their own dependencies, so there's no virtualenv to manage.
 
-One extra step for the Simple Syllabus script, which drives a real browser:
+Two extra things, each only needed by one step:
 
 ```sh
+# step 3 drives a real browser
 uv run --with playwright playwright install chromium
+
+# step 4 reads PDFs and falls back to character recognition
+brew install poppler ocrmypdf tesseract
 ```
+
+Step 5 needs somewhere to put the data - a Postgres database. We use
+[Neon](https://neon.tech). Copy `.env.example` to `.env` and put the connection
+string in it.
 
 ## Running it
 
-Three steps, in order. Each one writes into `data/`.
+Five steps, in order. The first four write into `data/`; the last one loads what
+they collected into Postgres.
 
 **1. Build the list of syllabi.** Scans all 282 departments and records every
 course section and where its syllabus lives. Takes about a minute.
@@ -66,20 +75,13 @@ uv run --with playwright python scripts/fetch_simple_syllabus.py
 uv run python scripts/extract_text.py
 ```
 
-This one needs a few tools first:
-
-```sh
-brew install poppler ocrmypdf tesseract
-```
-
 **5. Load it into the database.** About 30 seconds.
 
 ```sh
 uv run --with "psycopg[binary]" python scripts/load_database.py
 ```
 
-Reads the connection string from `DATABASE_URL`, or from a `.env` file if you
-have one. Copy `.env.example` to `.env` and fill it in.
+Takes the connection string from `DATABASE_URL`, or from `.env`.
 
 All of these remember what they finished. Re-running only picks up what's new
 or previously failed, so it's safe to run them again later in the semester to

@@ -59,8 +59,11 @@ def normalize(s):
     # A line can break at a real hyphen ("in-\nclass"), so removing the hyphen
     # and keeping it are both plausible readings. Drop hyphens on both sides of
     # the comparison instead of guessing which one it was.
-    s = re.sub(r"-\s*\n\s*", "", s)
-    s = s.replace("-", "")
+    # Drop every hyphen along with any whitespace after it. A line can break at
+    # a hyphen ("en-\n couraged"), and a coder joining that wrap writes
+    # "en- couraged" - the hyphen and the space both have to go, on both sides
+    # of the comparison, for the two to match.
+    s = re.sub(r"-\s*", "", s)
     return " ".join(s.split()).lower()
 
 
@@ -102,6 +105,13 @@ def validate(rec, bodies, problems):
     did = rec.get("document_id")
     if did not in bodies:
         problems.append(f"{did}: not a document we asked for"); return False
+    # A quarantined document has had its text removed on purpose - it turned out
+    # not to be a syllabus and not to be ours to hold. Its id stays in the
+    # corpus so the removal is on the record, but nothing may score it, and a
+    # stale coder file must never put it back.
+    if not bodies[did]:
+        problems.append(f"{did}: quarantined or empty document, refusing to score")
+        return False
     comp = (rec.get("document_completeness") or "").strip().lower()
     if comp not in COMPLETENESS:
         problems.append(f"{did}: document_completeness {comp!r} not full/stub"); return False
@@ -160,11 +170,39 @@ def main():
         sys.exit(__doc__)
     indir, version = Path(sys.argv[1]), sys.argv[2]
 
-    records = []
+    # Quarantined documents have had their text removed deliberately. Nothing
+    # may score them, and a batch file is not "incomplete" for leaving them out.
+    with psycopg.connect(dsn(), connect_timeout=30) as probe:
+        quarantined = {
+            r[0] for r in probe.execute("select id from documents where body is null")
+        }
+
+    # Only read a batch file whose record count matches its batch definition.
+    # A coder may still be rewriting its output when this runs, and loading a
+    # half-written file would import stale scores that look perfectly valid.
+    batch_dir = indir.parent / "batches"
+    records, skipped = [], []
     for f in sorted(indir.glob("*.json")):
-        data = json.loads(f.read_text())
-        records.extend(data if isinstance(data, list) else [data])
+        try:
+            data = json.loads(f.read_text())
+        except json.JSONDecodeError:
+            skipped.append(f"{f.name}: not valid JSON yet (still being written)")
+            continue
+        data = data if isinstance(data, list) else [data]
+        spec = batch_dir / f.name
+        if spec.exists():
+            wanted = json.loads(spec.read_text())
+            wanted_ids = {w["document_id"] if isinstance(w, dict) else w for w in wanted}
+            # Quarantined documents are deliberately absent from coder output,
+            # so they are not evidence of a half-written file.
+            expected = len(wanted_ids - quarantined)
+            if len(data) < expected:
+                skipped.append(f"{f.name}: {len(data)} of {expected} records - incomplete")
+                continue
+        records.extend(data)
     print(f"read {len(records)} records from {len(list(indir.glob('*.json')))} files")
+    for s_ in skipped:
+        print(f"  SKIPPED {s_}")
 
     conn = psycopg.connect(dsn(), connect_timeout=30)
     with conn, conn.cursor() as cur:
@@ -181,6 +219,16 @@ def main():
                 seen.add(r["document_id"]); good.append(r)
 
         softened = [r for r in good if r.get("_notes")]
+        # Keep a durable record of everything refused. These are documents whose
+        # evidence could not be verified, usually because a two-column or
+        # sidebar PDF interleaves other text into the sentence and the coder
+        # reconstructed it. They need re-coding, and the paper needs to be able
+        # to say exactly how many there were and why.
+        if problems:
+            rej = ROOT / "data" / "rejected.jsonl"
+            with rej.open("a") as f:
+                for p_ in problems:
+                    f.write(json.dumps({"version": version, "problem": p_}) + "\n")
         print(f"valid: {len(good)}   rejected: {len(problems)}")
         for r in softened:
             print(f"  NOTE   {r['document_id']}: {'; '.join(r['_notes'])}")
@@ -204,4 +252,5 @@ def main():
             print(f"\nloaded {len(good)} into document_policies (version {version})")
 
 
-main()
+if __name__ == "__main__":
+    main()

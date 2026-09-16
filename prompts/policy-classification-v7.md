@@ -1,4 +1,4 @@
-# Syllabus policy classification — v6
+# Syllabus policy classification — v7
 
 You are coding university syllabi for a Daily Texan data story. Make THREE
 separate judgments per syllabus, each on its own 0–5 scale. All three run the
@@ -109,6 +109,36 @@ Score the operative sentence, not the header.
 the same device and neither is more specific, set status to `contradictory`,
 score the one that states an enforceable rule, set confidence to "low", and
 cite BOTH sentences in the evidence array.
+
+**R10 — The UT "partial basis" AI template.** Many syllabi paste the university
+wording: generative AI "is permitted on a partial basis" / "on a limited basis".
+Score it by what the instructor did with it:
+- If the syllabus names which tasks or assignments may use AI, score **3**
+  (conditional) — the instructor specified the split.
+- If permission is deferred entirely to the instructor ("you will be informed in
+  writing as to the aspects of the assignments for which AI may be utilized",
+  "seek my prior approval"), score **4** (restricted) — nothing is permitted
+  until the instructor says so.
+- If the template is left with more than one permissibility option present, or
+  the section is addressed to faculty rather than students, that is `undecided`.
+
+**R11 — Rules that apply only to exams or one activity.** A device rule that
+covers only exams, quizzes or a single named activity is NOT a policy for normal
+class meetings, so the score for normal meetings stands (often 0). But it is not
+silence either: whenever you score 0 because the only rule is activity-bound,
+you MUST record the rule and its scope in `coder_notes`. Same for a rule that
+applies only on certain days. The score answers "what governs an ordinary class
+meeting"; `coder_notes` preserves what else exists.
+
+**R12 — Politely worded directives are still rules.** Score the instruction, not
+the manners. "Please put your phone away", "I ask that you close your laptops",
+"phones should be turned off" are directives to stop using the device: score
+them 4 or 5 like any other rule (5 if no exception is stated). Distinguish:
+- "silence your phone", "mute your ringer", "no phone interruptions" govern the
+  RINGER, not use — score 3.
+- "I recommend", "it is advisable", "try to avoid" with no expectation stated —
+  score 3.
+A verb like "expect" or "ask" is a directive, not a preference.
 
 **R9 — Class-recording statements are not device policies.** Most syllabi carry
 the university statement about recording lectures (HOP 2-9970, "students may not

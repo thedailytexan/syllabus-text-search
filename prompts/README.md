@@ -35,7 +35,7 @@ revised instructions add a comparable pass rather than overwriting the old one.
     PC or Mac" in a required-materials list was being scored 0, discarding a
     syllabus that does plainly tell students to have a computer.
 
-- **v3** (current) — same three scales. Fixes both:
+- **v3** — same three scales. Fixed two rules:
   - **R1a**: disability accommodations never count as an exception. A ban that
     is absolute except for documented accommodations is still a 5.
   - **R2**: an explicit instruction to have or bring a device counts wherever it
@@ -47,3 +47,23 @@ revised instructions add a comparable pass rather than overwriting the old one.
   - **R6**: contradictory sentences get the enforceable rule, low confidence,
     and both sentences quoted.
   - **R7**: a rule about generic "electronic devices" applies to both scales.
+
+- **v4** — contract fix, no change to scoring. Two rules asked coders to write
+  notes inside the evidence quote, which cannot be verbatim and annotated at the
+  same time; every coder hit it. Evidence became an array of quotes, each checked
+  on its own, with a separate `coder_notes` field.
+
+- **v5** (current) — two fields moved OFF the 0-5 scale, which now measures only
+  how tightly use is controlled:
+  - **`<scale>_required`**: whether students are told to HAVE the thing. A
+    syllabus can require a laptop and restrict its use; that is one coherent
+    policy, and the single scale could only hold half of it. Coders were
+    discarding one of the two facts on about one document in twenty.
+  - **`<scale>_status`** (`clear` / `undecided` / `contradictory`): whether a
+    policy could be determined at all. Keeps two different situations apart -
+    an instructor who wrote two rules that clash, and an instructor who shipped
+    an unedited template and never chose. One coder put it plainly about a
+    template case: the score has "no principled basis". Those belong outside a
+    strict-versus-lenient ratio, not inside it.
+  - **R8** states that a requirement plus a restriction is NOT a contradiction,
+    so those cases do not get swept into `contradictory`.

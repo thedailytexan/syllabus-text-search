@@ -1,4 +1,4 @@
-# Syllabus policy classification — v4
+# Syllabus policy classification — v5
 
 You are coding university syllabi for a Daily Texan data story. Make THREE
 separate judgments per syllabus, each on its own 0–5 scale. All three run the
@@ -29,6 +29,34 @@ Both use the same anchors:
 3  conditional   — allowed for some tasks or assignments and barred for others
 4  restricted    — only with explicit instructor permission
 5  prohibited    — banned course-wide with NO stated exception
+
+## Two fields that sit OUTSIDE the 0-5 scale
+
+The scale measures one thing only: how tightly USE is controlled. Two common
+situations do not fit on that line, so they get their own fields.
+
+**`<scale>_required`** (true/false) — does the syllabus tell students to HAVE or
+BRING the thing? This is independent of the score. "Bring a laptop to every
+class, and use it only for notes" is one coherent policy: `laptop_score` 4
+(restricted) AND `laptop_required` true. Score 1 (required) is for the case
+where a device is required and NO restriction on its use is stated. For AI,
+`ai_required` true means students are made to use AI for some work, even when
+the score is 3 because other work bars it.
+
+**`<scale>_status`** — could a policy be determined at all?
+- `clear` — a policy is determinable, including determinable silence (score 0).
+  This is the normal case; use it unless one of the below plainly applies.
+- `undecided` — the document raises the topic but never settles it. Unedited
+  template blocks left in ("[PROHIBITION]" and "[PERMITTED]" both present),
+  bracketed placeholders, a "Technology Policy" heading with no rule beneath
+  it, or boilerplate addressed to faculty rather than students. The instructor
+  did not make a choice.
+- `contradictory` — the document states two rules that cannot both be followed,
+  and neither is more specific. Quote both in the evidence array.
+
+Score everything as best you can even when status is `undecided` or
+`contradictory` — the score records your best reading, the status records that
+it should not be counted in a strict-versus-lenient ratio.
 
 ## Scoring rules
 
@@ -78,9 +106,14 @@ above a body that says a laptop is "highly suggested" is not a requirement.
 Score the operative sentence, not the header.
 
 **R6 — Contradictory sentences.** When two sentences state different rules for
-the same device and neither is more specific, score the one that states an
-enforceable rule, set confidence to "low", and cite BOTH sentences by putting
-them in the evidence array (see below).
+the same device and neither is more specific, set status to `contradictory`,
+score the one that states an enforceable rule, set confidence to "low", and
+cite BOTH sentences in the evidence array.
+
+**R8 — Requirement and restriction together.** When a syllabus both requires a
+device and limits its use, these are not in conflict and the status is NOT
+`contradictory`. Set `<scale>_required` true and score the restriction. Do not
+discard either fact.
 
 **R7 — Generic "devices".** A rule about "electronic devices" with no further
 detail applies to BOTH the phone and laptop scales. Score both the same, quote
@@ -122,14 +155,20 @@ in the order given, exactly this shape:
     "document_completeness": "full",
     "phone_score": 5,
     "phone_label": "prohibited",
+    "phone_required": false,
+    "phone_status": "clear",
     "phone_evidence": ["Cell phones must be muted and out of sight."],
     "phone_confidence": "high",
     "laptop_score": 4,
     "laptop_label": "restricted",
+    "laptop_required": true,
+    "laptop_status": "clear",
     "laptop_evidence": ["Laptops and tablets may be used only for typing notes."],
     "laptop_confidence": "high",
     "ai_score": 3,
     "ai_label": "conditional",
+    "ai_required": false,
+    "ai_status": "clear",
     "ai_evidence": ["You may use AI to brainstorm, but not to draft your essays."],
     "ai_confidence": "high",
     "coder_notes": null

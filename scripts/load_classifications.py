@@ -25,9 +25,12 @@ SCALES = {"phone": DEVICE_LABELS, "laptop": DEVICE_LABELS, "ai": AI_LABELS}
 CONFIDENCE = {"high", "medium", "low"}
 COMPLETENESS = {"full", "stub"}
 
+STATUSES = {"clear", "undecided", "contradictory"}
+
 FIELDS = (["document_id", "document_completeness", "coder_notes"]
           + [f"{s}_{f}" for s in SCALES
-             for f in ("score", "label", "evidence", "confidence")]
+             for f in ("score", "label", "evidence", "confidence",
+                       "required", "status")]
           + ["evidence_notes"])
 
 
@@ -104,6 +107,10 @@ def validate(rec, bodies, problems):
         problems.append(f"{did}: document_completeness {comp!r} not full/stub"); return False
     rec["document_completeness"] = comp
     for scale, labels in SCALES.items():
+        status = (rec.get(f"{scale}_status") or "").strip().lower()
+        if status not in STATUSES:
+            problems.append(f"{did}: {scale}_status {status!r} invalid"); return False
+        rec[f"{scale}_status"] = status
         score = rec.get(f"{scale}_score")
         if score not in labels:
             problems.append(f"{did}: {scale}_score {score!r} not 0-5"); return False
@@ -114,11 +121,22 @@ def validate(rec, bodies, problems):
         conf = (rec.get(f"{scale}_confidence") or "").strip().lower()
         if conf not in CONFIDENCE:
             problems.append(f"{did}: {scale}_confidence {conf!r} invalid"); return False
+        if not isinstance(rec.get(f"{scale}_required"), bool):
+            problems.append(f"{did}: {scale}_required must be true/false"); return False
         quotes = as_quotes(rec.get(f"{scale}_evidence"))
         if score == 0:
-            if quotes:
-                problems.append(f"{did}: {scale} scored 0 but has evidence"); return False
-            rec[f"{scale}_evidence"] = None
+            # A score of 0 normally means silence, and silence has no quote.
+            # The exception is a document that raised the topic but never
+            # settled it: there the quote is what proves the status, so it is
+            # required rather than forbidden.
+            if status == "clear" and quotes:
+                problems.append(f"{did}: {scale} scored 0 and clear, but has evidence")
+                return False
+            if status != "clear" and not quotes:
+                problems.append(f"{did}: {scale} is {status} but cites nothing")
+                return False
+            if not quotes:
+                rec[f"{scale}_evidence"] = None
         else:
             if not quotes:
                 problems.append(f"{did}: {scale} scored {score} with no evidence"); return False

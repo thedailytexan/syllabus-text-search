@@ -26,6 +26,22 @@ TEXT_DIR = ROOT / "data" / "text"
 OUT = ROOT / "data" / "extractions.jsonl"
 
 MIN_CHARS_PER_PAGE = 200      # below this we treat the text layer as unusable
+# Some PDFs embed subset fonts with no usable encoding map. The text layer then
+# extracts a character-for-character substitution cipher - plenty of characters,
+# none of them words. Character count cannot catch this, so check that the text
+# actually contains common English words before trusting it.
+# Checked across several languages, not just English: UT teaches syllabi in
+# French, Spanish, German and more, and an English-only test flags those as
+# garbled and sends them to an English OCR model, which makes them worse.
+COMMON_WORDS = {
+    "en": (" the ", " and ", " of ", " to ", " you ", " in ", " for "),
+    "es": (" el ", " la ", " los ", " las ", " de ", " que ", " para "),
+    "fr": (" le ", " la ", " les ", " des ", " du ", " et ", " une "),
+    "de": (" der ", " die ", " das ", " und ", " den ", " ist ", " fur "),
+    "pt": (" o ", " a ", " os ", " as ", " de ", " que ", " para "),
+    "it": (" il ", " la ", " di ", " che ", " per ", " del ", " una "),
+}
+MIN_COMMON_PER_1K = 3.0
 WORKERS = 8
 OCR_TIMEOUT = 600
 
@@ -49,6 +65,20 @@ def read_text_layer(pdf):
     """-layout keeps columns and date tables readable instead of interleaving them."""
     r = run(["pdftotext", "-layout", str(pdf), "-"], 120)
     return r.stdout if r.returncode == 0 else ""
+
+
+def looks_like_words(text):
+    """Does this read as prose in some language, or as a substitution cipher?
+
+    Passing in ANY of the checked languages is enough. A font-subset cipher
+    scores near zero in all of them; a French syllabus scores well in French.
+    """
+    if len(text) < 500:
+        return True          # too short to judge; let the page-count test decide
+    low = text.lower()
+    per_k = len(text) / 1000
+    return any(sum(low.count(w) for w in words) / per_k >= MIN_COMMON_PER_1K
+               for words in COMMON_WORDS.values())
 
 
 class Encrypted(Exception):
@@ -83,9 +113,13 @@ def extract(rec, counters):
     try:
         text = read_text_layer(pdf)
         pages = result["pages"] or 1
-        if len(text.strip()) / pages >= MIN_CHARS_PER_PAGE:
+        dense_enough = len(text.strip()) / pages >= MIN_CHARS_PER_PAGE
+        if dense_enough and looks_like_words(text):
             result["tier"] = "text_layer"
         else:
+            # Either too little text, or text that is not words. Both mean the
+            # embedded layer is unusable and the page has to be recognised.
+            result["garbled_text_layer"] = dense_enough
             text = ocr(pdf)
             result["tier"] = "ocr"
         result["chars"] = len(text.strip())

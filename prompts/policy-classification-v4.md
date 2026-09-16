@@ -1,4 +1,4 @@
-# Syllabus policy classification — v3
+# Syllabus policy classification — v4
 
 You are coding university syllabi for a Daily Texan data story. Make THREE
 separate judgments per syllabus, each on its own 0–5 scale. All three run the
@@ -79,11 +79,12 @@ Score the operative sentence, not the header.
 
 **R6 — Contradictory sentences.** When two sentences state different rules for
 the same device and neither is more specific, score the one that states an
-enforceable rule, set confidence to "low", and quote both in the evidence.
+enforceable rule, set confidence to "low", and cite BOTH sentences by putting
+them in the evidence array (see below).
 
 **R7 — Generic "devices".** A rule about "electronic devices" with no further
-detail applies to BOTH the phone and laptop scales. Score both the same and say
-in the evidence that the wording was generic.
+detail applies to BOTH the phone and laptop scales. Score both the same, quote
+the generic sentence, and note the generic wording in `coder_notes`.
 
 ## Other requirements
 
@@ -92,11 +93,17 @@ in the evidence that the wording was generic.
 - **0 means genuinely silent.** Never use 0 as a middle value, and never infer
   a permissive policy from silence.
 - A university-wide boilerplate statement still counts if it states a rule.
-- `evidence` must be a quote copied EXACTLY as it appears in the file, max ~200
-  characters. If the extracted text is garbled ("genera?ve"), reproduce the
-  garbling — do not clean it up. You may join lines wrapped mid-sentence and
-  drop invisible zero-width characters; do not change any visible character.
-  Use null when the score is 0.
+- `evidence` is an ARRAY of quotes copied EXACTLY as they appear in the file,
+  each max ~200 characters. Usually one quote; use several when a rule is split
+  across sentences (R6). Never join separate sentences into one string with
+  "/" or "..." — each array element is checked against the document on its own
+  and a stitched-together quote will be rejected. If the extracted text is
+  garbled ("genera?ve"), reproduce the garbling. You may join lines wrapped
+  mid-sentence and drop invisible zero-width characters; do not change any
+  visible character. Use an empty array when the score is 0.
+- `coder_notes`: optional, one short line. Use it for anything you would
+  otherwise want to write into the evidence — generic wording, a rule that was
+  close between two scores, a caveat. Never put commentary in `evidence`.
 - `confidence`: "high" when the language is explicit, "medium" when you are
   reading between the lines, "low" when genuinely unsure.
 - `document_completeness`: "stub" if this is an abridged summary or placeholder
@@ -115,16 +122,17 @@ in the order given, exactly this shape:
     "document_completeness": "full",
     "phone_score": 5,
     "phone_label": "prohibited",
-    "phone_evidence": "Cell phones must be muted and out of sight.",
+    "phone_evidence": ["Cell phones must be muted and out of sight."],
     "phone_confidence": "high",
     "laptop_score": 4,
     "laptop_label": "restricted",
-    "laptop_evidence": "Laptops and tablets may be used only for typing notes.",
+    "laptop_evidence": ["Laptops and tablets may be used only for typing notes."],
     "laptop_confidence": "high",
     "ai_score": 3,
     "ai_label": "conditional",
-    "ai_evidence": "You may use AI to brainstorm, but not to draft your essays.",
-    "ai_confidence": "high"
+    "ai_evidence": ["You may use AI to brainstorm, but not to draft your essays."],
+    "ai_confidence": "high",
+    "coder_notes": null
   }
 ]
 ```

@@ -25,7 +25,7 @@ SCALES = {"phone": DEVICE_LABELS, "laptop": DEVICE_LABELS, "ai": AI_LABELS}
 CONFIDENCE = {"high", "medium", "low"}
 COMPLETENESS = {"full", "stub"}
 
-FIELDS = (["document_id", "document_completeness"]
+FIELDS = (["document_id", "document_completeness", "coder_notes"]
           + [f"{s}_{f}" for s in SCALES
              for f in ("score", "label", "evidence", "confidence")]
           + ["evidence_notes"])
@@ -53,8 +53,26 @@ def normalize(s):
     """
     s = unicodedata.normalize("NFKC", s or "")
     s = ZERO_WIDTH.sub("", s).translate(SMART)
-    s = re.sub(r"-\s*\n\s*", "", s)      # word- \n break
+    # A line can break at a real hyphen ("in-\nclass"), so removing the hyphen
+    # and keeping it are both plausible readings. Drop hyphens on both sides of
+    # the comparison instead of guessing which one it was.
+    s = re.sub(r"-\s*\n\s*", "", s)
+    s = s.replace("-", "")
     return " ".join(s.split()).lower()
+
+
+def as_quotes(ev):
+    """Evidence may be one quote or several.
+
+    A contradictory policy needs both sentences cited, and two non-adjacent
+    sentences joined into one string is not a substring of anything. So a list
+    is allowed, and each element is verified on its own.
+    """
+    if ev is None:
+        return []
+    if isinstance(ev, str):
+        return [ev] if ev.strip() else []
+    return [q for q in ev if isinstance(q, str) and q.strip()]
 
 
 def find_evidence(quote, body):
@@ -96,22 +114,26 @@ def validate(rec, bodies, problems):
         conf = (rec.get(f"{scale}_confidence") or "").strip().lower()
         if conf not in CONFIDENCE:
             problems.append(f"{did}: {scale}_confidence {conf!r} invalid"); return False
-        ev = rec.get(f"{scale}_evidence")
+        quotes = as_quotes(rec.get(f"{scale}_evidence"))
         if score == 0:
-            if ev:
+            if quotes:
                 problems.append(f"{did}: {scale} scored 0 but has evidence"); return False
+            rec[f"{scale}_evidence"] = None
         else:
-            if not ev or not ev.strip():
+            if not quotes:
                 problems.append(f"{did}: {scale} scored {score} with no evidence"); return False
-            # the quote has to really be in the document - this is what stops
+            # every quote has to really be in the document - this is what stops
             # a plausible-sounding but invented citation reaching print
-            how = find_evidence(ev, bodies[did])
-            if how is None:
-                problems.append(f"{did}: {scale} evidence not found in document")
-                return False
-            if how == "normalized":
-                rec.setdefault("_notes", []).append(
-                    f"{scale}: matched after normalizing extraction noise")
+            for q in quotes:
+                how = find_evidence(q, bodies[did])
+                if how is None:
+                    problems.append(f"{did}: {scale} evidence not found in document "
+                                    f"-> {q[:60]!r}")
+                    return False
+                if how == "normalized":
+                    rec.setdefault("_notes", []).append(
+                        f"{scale}: matched after normalizing extraction noise")
+            rec[f"{scale}_evidence"] = "\n\n".join(quotes)
     return True
 
 

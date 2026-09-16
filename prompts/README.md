@@ -53,7 +53,7 @@ revised instructions add a comparable pass rather than overwriting the old one.
   same time; every coder hit it. Evidence became an array of quotes, each checked
   on its own, with a separate `coder_notes` field.
 
-- **v5** (current) — two fields moved OFF the 0-5 scale, which now measures only
+- **v5** — two fields moved OFF the 0-5 scale, which now measures only
   how tightly use is controlled:
   - **`<scale>_required`**: whether students are told to HAVE the thing. A
     syllabus can require a laptop and restrict its use; that is one coherent
@@ -67,3 +67,9 @@ revised instructions add a comparable pass rather than overwriting the old one.
     strict-versus-lenient ratio, not inside it.
   - **R8** states that a requirement plus a restriction is NOT a contradiction,
     so those cases do not get swept into `contradictory`.
+
+- **v6** (current) — adds **R9**: the university class-recording statement
+  (HOP 2-9970) is not a device policy. It appears in most syllabi and governs
+  recording rather than device use, so leaving it to each coder's judgment would
+  drift across hundreds of batches. A "Technology Policy" heading containing
+  only the recording statement is silence on devices, and scores 0.

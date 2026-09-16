@@ -1,4 +1,4 @@
-# Syllabus policy classification — v5
+# Syllabus policy classification — v6
 
 You are coding university syllabi for a Daily Texan data story. Make THREE
 separate judgments per syllabus, each on its own 0–5 scale. All three run the
@@ -109,6 +109,13 @@ Score the operative sentence, not the header.
 the same device and neither is more specific, set status to `contradictory`,
 score the one that states an enforceable rule, set confidence to "low", and
 cite BOTH sentences in the evidence array.
+
+**R9 — Class-recording statements are not device policies.** Most syllabi carry
+the university statement about recording lectures (HOP 2-9970, "students may not
+record class without permission"). That governs RECORDING, not whether a device
+may be used in class. Never score it on the phone or laptop scale. The same goes
+for a "Technology Policy" heading whose only content is the recording statement -
+that is silence on device use, so score 0.
 
 **R8 — Requirement and restriction together.** When a syllabus both requires a
 device and limits its use, these are not in conflict and the status is NOT

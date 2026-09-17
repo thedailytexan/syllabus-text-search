@@ -17,25 +17,62 @@ agreement expected by chance given the observed distribution.
 Conventional reading: alpha >= 0.800 is reliable, 0.667-0.800 supports tentative
 conclusions, below that is not usable.
 
+Both passes live in the database, so the figure is reproducible from Neon alone
+and does not depend on a working directory surviving. Directories of raw coder
+JSON are still accepted, for checking a pass before it is loaded.
+
 Usage:
-    uv run python scripts/coder_agreement.py <first_dir> <second_dir>
+    uv run --with "psycopg[binary]" python scripts/coder_agreement.py [first] [second]
+
+    Defaults to the two stored versions:  v7-full  v7-double
+    An argument that is an existing directory is read as coder JSON instead.
 """
 
 import collections
 import json
+import os
 import pathlib
 import sys
 
 SCALES = ("phone", "laptop", "ai")
 
 
-def load(directory):
-    """Map document_id -> record, for every batch file in a directory."""
-    out = {}
-    for path in sorted(pathlib.Path(directory).glob("batch_*.json")):
-        for rec in json.loads(path.read_text()):
-            out[rec["document_id"]] = rec
-    return out
+SCORE_FIELDS = [f"{s}_{f}" for s in SCALES
+                for f in ("score", "required", "status")]
+
+
+def load_env():
+    env = pathlib.Path(__file__).resolve().parent.parent / ".env"
+    for line in env.read_text().splitlines():
+        if "=" in line and not line.startswith("#"):
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def load(source):
+    """Map document_id -> record, from a directory of coder JSON or from a
+    stored prompt_version in the database."""
+    path = pathlib.Path(source)
+    if path.is_dir():
+        out = {}
+        for f in sorted(path.glob("batch_*.json")):
+            for rec in json.loads(f.read_text()):
+                out[rec["document_id"]] = rec
+        return out
+
+    import psycopg
+
+    load_env()
+    columns = ", ".join(SCORE_FIELDS)
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        rows = conn.execute(
+            f"select document_id, {columns} from document_policies"
+            " where prompt_version = %s",
+            (source,),
+        ).fetchall()
+    if not rows:
+        sys.exit(f"no rows stored for prompt_version {source!r}")
+    return {r[0]: dict(zip(SCORE_FIELDS, r[1:])) for r in rows}
 
 
 def alpha_ordinal(pairs):
@@ -75,9 +112,11 @@ def alpha_ordinal(pairs):
 
 
 def main():
-    if len(sys.argv) < 3:
+    args = sys.argv[1:] or ["v7-full", "v7-double"]
+    if len(args) != 2:
         sys.exit(__doc__)
-    first, second = load(sys.argv[1]), load(sys.argv[2])
+    print(f"\ncomparing {args[0]}  vs  {args[1]}")
+    first, second = load(args[0]), load(args[1])
     shared = sorted(set(first) & set(second))
     if not shared:
         sys.exit("no documents coded by both passes yet")

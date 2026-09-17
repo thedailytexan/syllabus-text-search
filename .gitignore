@@ -1,5 +1,9 @@
 # Fetched source documents - large, regenerable, never committed
-data/
+data/*
+
+# ...except small work lists that are findings in their own right and cost real
+# time to reproduce. These describe the corpus rather than containing it.
+!data/multicolumn_ids.json
 
 # Secrets
 .env

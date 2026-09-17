@@ -210,9 +210,29 @@ report its hard calls, and why those reports are read.
 
 `document_policies.prompt_version` records which codebook version produced each
 row. Revised instructions add a comparable pass rather than overwriting the old
-one. 900 documents carry scores under both v6 and v7, which lets us state the
-size of the revision's effect rather than assert it was small. *(On the first
-100 overlapping documents, about 10% of scores moved. Full comparison pending.)*
+one, so the size of a revision's effect can be stated rather than asserted.
+
+900 documents carry scores under both v6 and v7. Comparing them:
+
+| scale | scores changed | moved 2+ bins | strict share, v6 → v7 |
+|---|---|---|---|
+| Phone | 4.6% | 20 | 75.8% → 79.0% (+3.2) |
+| Laptop | 4.2% | 21 | 53.7% → 56.2% (+2.5) |
+| **AI** | **11.3%** | 12 | **36.7% → 46.4% (+9.8)** |
+
+This is worth sitting with. The device scales barely moved — v7's device changes
+were clarifications, and they behaved like clarifications. **The AI scale moved
+almost ten points** on the same 900 documents, because v7 rewrote the rule
+governing the university's "partial basis" template, which a quarter of the
+corpus uses.
+
+Two things follow. First, the instrument is sensitive to how one rule is worded
+on the scale where the language is newest and least settled, which is exactly
+what §7.7 says about the remaining band. Second, this is why a published figure
+has to name its codebook version: "half of AI policies are restrictive" and
+"a third of AI policies are restrictive" are both defensible sentences about the
+same syllabi under two versions of the same instrument, six weeks apart. The
+version is part of the claim, not a footnote to it.
 
 ---
 
